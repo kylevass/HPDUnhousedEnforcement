@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HPD Crime Pattern Analysis</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #0f0f0f;
+    --surface: #181818;
+    --surface2: #222222;
+    --border: #2a2a2a;
+    --border2: #333333;
+    --text: #e8e6e0;
+    --muted: #888680;
+    --faint: #444240;
+
+    --para: #378ADD;
+    --para-dim: rgba(55,138,221,0.12);
+    --tres: #1D9E75;
+    --tres-dim: rgba(29,158,117,0.12);
+    --camp: #D85A30;
+    --camp-dim: rgba(216,90,48,0.12);
+    --shop: #BA7517;
+    --shop-dim: rgba(186,117,23,0.12);
+
+    --flag-red: #E24B4A;
+    --flag-amber: #EF9F27;
+    --flag-blue: #378ADD;
+    --flag-teal: #1D9E75;
+    --flag-purple: #7F77DD;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  header {
+    padding: 40px 48px 32px;
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--muted);
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  header h2 {
+    font-size: 26px;
+    font-weight: 300;
+    color: var(--text);
+    letter-spacing: -.01em;
+  }
+  header .meta {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  nav {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    padding: 0 48px;
+    overflow-x: auto;
+  }
+  nav a {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-decoration: none;
+    padding: 14px 20px;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: color .15s, border-color .15s;
+  }
+  nav a:hover { color: var(--text); }
+  nav a.para { border-color: var(--para); color: var(--para); }
+  nav a.tres { border-color: var(--tres); color: var(--tres); }
+  nav a.camp { border-color: var(--camp); color: var(--camp); }
+  nav a.shop { border-color: var(--shop); color: var(--shop); }
+
+  main { padding: 0 48px 80px; }
+
+  .crime-section {
+    padding-top: 56px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 28px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-header h3 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 18px;
+    font-weight: 500;
+  }
+  .section-header .total {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .section-header .dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .broad-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 24px 28px;
+    margin-bottom: 16px;
+  }
+  .broad-card .card-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 18px;
+  }
+  .broad-charts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  .chart-label {
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 8px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .chart-wrap { position: relative; height: 160px; }
+  .chart-wrap-sm { position: relative; height: 110px; }
+
+  .loc-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--border);
+    border-radius: 0 6px 6px 0;
+    padding: 18px 22px;
+    margin-bottom: 10px;
+  }
+  .loc-card.cat-para { border-left-color: var(--para); }
+  .loc-card.cat-tres { border-left-color: var(--tres); }
+  .loc-card.cat-camp { border-left-color: var(--camp); }
+  .loc-card.cat-shop { border-left-color: var(--shop); }
+
+  .loc-top {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+  .loc-addr {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+  }
+  .loc-n {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-bottom: 14px;
+  }
+  .tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 3px;
+    letter-spacing: .04em;
+  }
+  .tag-red    { background: rgba(226,75,74,.15);   color: #F09595; border: 1px solid rgba(226,75,74,.25); }
+  .tag-amber  { background: rgba(239,159,39,.12);  color: #FAC775; border: 1px solid rgba(239,159,39,.22); }
+  .tag-blue   { background: rgba(55,138,221,.12);  color: #85B7EB; border: 1px solid rgba(55,138,221,.22); }
+  .tag-gray   { background: rgba(136,135,128,.1);  color: #B4B2A9; border: 1px solid rgba(136,135,128,.2); }
+  .tag-teal   { background: rgba(29,158,117,.12);  color: #5DCAA5; border: 1px solid rgba(29,158,117,.22); }
+
+  .loc-charts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .note {
+    margin-top: 12px;
+    font-size: 12px;
+    color: var(--muted);
+    background: var(--surface2);
+    border-radius: 4px;
+    padding: 9px 12px;
+    line-height: 1.6;
+    border-left: 2px solid var(--border2);
+  }
+  .note strong { color: var(--text); font-weight: 500; }
+
+  .anomaly-block {
+    margin-bottom: 32px;
+  }
+  .anomaly-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .banner {
+    border-radius: 0 6px 6px 0;
+    padding: 14px 18px;
+    margin-bottom: 10px;
+    border-left: 3px solid var(--faint);
+    background: var(--surface);
+    line-height: 1.6;
+  }
+  .banner.b-tres    { border-left-color: var(--tres); }
+  .banner.b-camp    { border-left-color: var(--camp); }
+  .banner.b-shop    { border-left-color: var(--shop); }
+  .banner.b-neutral { border-left-color: var(--faint); }
+  .banner .bt { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 5px; }
+  .banner .bd { font-size: 12px; color: var(--muted); }
+  .banner .bd strong { color: var(--text); font-weight: 500; }
+
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 56px 0 0;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>HPD Targeting Unhoused People</h1>
+  <h2>Enforcement Pattern Analysis — Incidents &amp; Arrests Combined</h2>
+  <div class="meta">n=9,141 combined records (includes duplication of enforcement) &nbsp;·&nbsp; paraphernalia / trespass / camping / shoplifting &nbsp;·&nbsp; day of week + time of day</div>
+</header>
+
+<nav>
+  <a href="#anomalies">Key anomalies</a>
+  <a href="#paraphernalia" class="para">Paraphernalia (387)</a>
+  <a href="#trespass" class="tres">Trespass (770)</a>
+  <a href="#camping" class="camp">Camping (265)</a>
+  <a href="#shoplifting" class="shop">Shoplifting (627)</a>
+</nav>
+
+<main>
+
+<!-- KEY ANOMALIES -->
+<div class="crime-section" id="anomalies">
+  <div class="section-header">
+    <h3 style="color:var(--text)">Key anomalies</h3>
+  </div>
+  <div class="anomaly-block">
+    <div class="banner b-tres">
+      <div class="bt">900 Block Washington Ave (Trespass) — Fridays at noon, nothing else</div>
+      <div class="bd"><strong>40 of 43 total incidents fall on Friday (93%).</strong> Peak window is 1pm (17) and 2pm (15 incidents). Zero 6am enforcement, zero weekends, and Thursday accounts for the entire non-Friday remainder (3 incidents). This location shares no behavioral signature with the other 13 trespass locations. Almost certainly a specific property or business with a predictable weekly enforcement schedule.</div>
+    </div>
+    <div class="banner b-tres">
+      <div class="bt">400 Block 4th St + 1000 Block 5th Ave (Trespass) — the 6am corridor</div>
+      <div class="bd"><strong>400 Block 4th St is 79% at 6am (45/57). 1000 Block 5th Ave is 91% at 6am (20/22).</strong> Both are 100% weekday. Add 600 Block 7th St (73% at 7am, 19/26), 500 Block 3rd St (62% at 7am, 16/26), and 1100 Block 6th Ave (45% at 6am, 13/29) and you have a geographic corridor being systematically worked in the same 6–7am window, Monday through Wednesday primarily.</div>
+    </div>
+    <div class="banner b-camp">
+      <div class="bt">10th St &amp; Veterans Memorial Blvd (Camping) — every single incident on Monday</div>
+      <div class="bd"><strong>All 10 incidents at this intersection fall on Monday</strong>, peaking at 8am (5/10). The nearby 1000 Block Veterans Memorial is 100% weekday with 75% at 6am and Tuesday-heavy. Together they suggest a weekly two-day Veterans Memorial corridor clearance: Monday at the intersection, Tuesday at the 1000 Block.</div>
+    </div>
+    <div class="banner b-shop">
+      <div class="bt">300 Block Norway Ave + 100 Block 6th Ave (Shoplifting) — the weekend outliers</div>
+      <div class="bd">Every other shoplifting location is 76–93% weekday. <strong>Norway Ave is 67% weekend (12/18) with a sharp 8pm peak (5 incidents, 28% of its total).</strong> 100 Block 6th Ave is 82% weekend (9/11) on Sat/Sun evenings. Both likely represent convenience or bar-adjacent retail, not the strip malls and big-box stores that dominate the rest of the shoplifting data.</div>
+    </div>
+    <div class="banner b-shop">
+      <div class="bt">2200 Block 5th Ave (Shoplifting) — Friday concentration</div>
+      <div class="bd"><strong>Friday accounts for 32% of all incidents at this location (21/66)</strong>, with Thursday adding another 23% (15/66). Over half the incidents fall on just two days. Peak hour is 1pm (14 incidents). Distinct from the broader shoplifting pattern where days are more evenly spread.</div>
+    </div>
+    <div class="banner b-neutral">
+      <div class="bt">600 Block 4th Ave — two separate enforcement patterns on the same block</div>
+      <div class="bd">This address appears in camping, trespass, and paraphernalia. For camping and trespass the pattern is the 6am morning clearance. For paraphernalia, <strong>50% of the 26 incidents cluster at 1–2pm on Tuesday and Wednesday</strong> — a distinct midday patrol pattern operating on the same block, likely hours after the morning sweep concludes.</div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- PARAPHERNALIA -->
+<div class="crime-section" id="paraphernalia">
+  <div class="section-header">
+    <div class="dot" style="background:var(--para)"></div>
+    <h3 style="color:var(--para)">Paraphernalia</h3>
+    <span class="total">n=387 combined incidents &amp; arrests</span>
+  </div>
+
+  <div class="broad-card">
+    <div class="card-label">All paraphernalia — day of week &amp; time of day</div>
+    <div class="broad-charts">
+      <div>
+        <div class="chart-label">Day of week</div>
+        <div class="chart-wrap"><canvas id="p-broad-d" role="img" aria-label="Paraphernalia by day: Mon 61, Tue 65, Wed 82, Thu 50, Fri 89, Sat 15, Sun 25">Mon 61, Tue 65, Wed 82, Thu 50, Fri 89, Sat 15, Sun 25</canvas></div>
+      </div>
+      <div>
+        <div class="chart-label">Hour of day</div>
+        <div class="chart-wrap"><canvas id="p-broad-h" role="img" aria-label="Paraphernalia by hour: peaks 6-7am and 1-2pm">Peaks at 6am, 7am, 1pm, 2pm</canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="loc-card cat-para">
+    <div class="loc-top"><span class="loc-addr">600 Block 4th Ave</span><span class="loc-n">n=26</span></div>
+    <div class="tags">
+      <span class="tag tag-amber">50% at 1–2pm (13/26)</span>
+      <span class="tag tag-blue">92% weekday</span>
+      <span class="tag tag-gray">Tue + Wed</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="p-4a-h" role="img" aria-label="600 Block 4th Ave paraphernalia by hour"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="p-4a-d" role="img" aria-label="600 Block 4th Ave paraphernalia by day"></canvas></div></div>
+    </div>
+    <div class="note"><strong>Same block as camping/trespass activity</strong> but the 1–2pm window is entirely distinct from the 6am clearing pattern at this address — two separate enforcement activities on the same block at different times of day.</div>
+  </div>
+
+  <div class="loc-card cat-para">
+    <div class="loc-top"><span class="loc-addr">1000 Block 5th Ave</span><span class="loc-n">n=10</span></div>
+    <div class="tags">
+      <span class="tag tag-red">60% at 6am (6/10)</span>
+      <span class="tag tag-blue">100% weekday</span>
+      <span class="tag tag-gray">Fri heavy (6)</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="p-5a-h" role="img" aria-label="1000 Block 5th Ave paraphernalia by hour"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="p-5a-d" role="img" aria-label="1000 Block 5th Ave paraphernalia by day"></canvas></div></div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- TRESPASS -->
+<div class="crime-section" id="trespass">
+  <div class="section-header">
+    <div class="dot" style="background:var(--tres)"></div>
+    <h3 style="color:var(--tres)">Trespass</h3>
+    <span class="total">n=770 combined incidents &amp; arrests</span>
+  </div>
+
+  <div class="broad-card">
+    <div class="card-label">All trespass — day of week &amp; time of day</div>
+    <div class="broad-charts">
+      <div>
+        <div class="chart-label">Day of week</div>
+        <div class="chart-wrap"><canvas id="t-broad-d" role="img" aria-label="Trespass by day: Mon 136, Tue 164, Wed 160, Thu 113, Fri 135, Sat 19, Sun 43">Mon 136, Tue 164, Wed 160, Thu 113, Fri 135, Sat 19, Sun 43</canvas></div>
+      </div>
+      <div>
+        <div class="chart-label">Hour of day</div>
+        <div class="chart-wrap"><canvas id="t-broad-h" role="img" aria-label="Trespass by hour: massive 6am spike at 154, 7am 108">6am 154, 7am 108, drops steeply through day</canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="loc-card cat-tres">
+    <div class="loc-top"><span class="loc-addr">900 Block Washington Ave</span><span class="loc-n">n=43 — anomaly</span></div>
+    <div class="tags">
+      <span class="tag tag-red">93% on Friday (40/43)</span>
+      <span class="tag tag-amber">1pm (17) + 2pm (15)</span>
+      <span class="tag tag-blue">100% weekday</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="t-wa-h" role="img" aria-label="Washington Ave trespass by hour — noon to 2pm peak"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="t-wa-d" role="img" aria-label="Washington Ave trespass by day — almost entirely Friday"></canvas></div></div>
+    </div>
+    <div class="note"><strong>40 of 43 on Friday.</strong> No 6am incidents. No weekends. Peak 1–2pm window. Does not share any behavioral signature with the other trespass locations.</div>
+  </div>
+
+  <div class="loc-card cat-tres">
+    <div class="loc-top"><span class="loc-addr">700 Block 6th Ave</span><span class="loc-n">n=63</span></div>
+    <div class="tags">
+      <span class="tag tag-blue">85% weekday</span>
+      <span class="tag tag-gray">6am (10) + 10am (9)</span>
+      <span class="tag tag-gray">Tue (17) + Fri (14)</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="t-6a-h" role="img" aria-label="700 Block 6th Ave trespass by hour"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="t-6a-d" role="img" aria-label="700 Block 6th Ave trespass by day"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="loc-card cat-tres">
+    <div class="loc-top"><span class="loc-addr">400 Block 4th St</span><span class="loc-n">n=57</span></div>
+    <div class="tags">
+      <span class="tag tag-red">79% at 6am (45/57)</span>
+      <span class="tag tag-blue">100% weekday</span>
+      <span class="tag tag-gray">Mon (19) + Wed (16)</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="t-4s-h" role="img" aria-label="400 Block 4th St trespass by hour — 6am dominates"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="t-4s-d" role="img" aria-label="400 Block 4th St trespass by day"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="loc-card cat-tres">
+    <div class="loc-top"><span class="loc-addr">900 Block 5th Ave</span><span class="loc-n">n=53</span></div>
+    <div class="tags">
+      <span class="tag tag-red">36% at 6am (19/53)</span>
+      <span class="tag tag-blue">96% weekday</span>
+      <span class="tag tag-gray">Mon (13) + Tue (11)</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="t-5a-h" role="img" aria-label="900 Block 5th Ave trespass by hour"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="t-5a-d" role="img" aria-label="900 Block 5th Ave trespass by day"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="loc-card cat-tres">
+    <div class="loc-top"><span class="loc-addr">1000 Block 6th Ave</span><span class="loc-n">n=30</span></div>
+    <div class="tags">
+      <span class="tag tag-red">40% at 9am (12/30)</span>
+      <span class="tag tag-blue">100% weekday</span>
+      <span class="tag tag-gray">Tue heavy (14)</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="t-6b-h" role="img" aria-label="1000 Block 6th Ave trespass by hour — 9am peak"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="t-6b-d" role="img" aria-label="1000 Block 6th Ave trespass by day"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="loc-card cat-tres">
+    <div class="loc-top"><span class="loc-addr">1100 Block 6th Ave</span><span class="loc-n">n=29</span></div>
+    <div class="tags">
+      <span class="tag tag-red">45% at 6am (13/29)</span>
+      <span class="tag tag-blue">86% weekday</span>
+      <span class="tag tag-gray">Mon heavy (9)</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="t-6c-h" role="img" aria-label="1100 Block 6th Ave trespass by hour"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="t-6c-d" role="img" aria-label="1100 Block 6th Ave trespass by day"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="loc-card cat-tres">
+    <div class="loc-top"><span class="loc-addr">600 Block 7th St</span><span class="loc-n">n=26</span></div>
+    <div class="tags">
+      <span class="tag tag-red">73% at 7am (19/26)</span>
+      <span class="tag tag-blue">100% weekday</span>
+      <span class="tag tag-gray">Wed (18) + Tue (8)</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="t-7s-h" role="img" aria-label="600 Block 7th St trespass by hour — 7am spike"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="t-7s-d" role="img" aria-label="600 Block 7th St trespass by day"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="loc-card cat-tres">
+    <div class="loc-top"><span class="loc-addr">500 Block 3rd St</span><span class="loc-n">n=26</span></div>
+    <div class="tags">
+      <span class="tag tag-red">62% at 7am (16/26)</span>
+      <span class="tag tag-blue">100% weekday</span>
+      <span class="tag tag-gray">Mon–Wed spread</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="t-3s-h" role="img" aria-label="500 Block 3rd St trespass by hour — 7am dominant"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="t-3s-d" role="img" aria-label="500 Block 3rd St trespass by day"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="loc-card cat-tres">
+    <div class="loc-top"><span class="loc-addr">1000 Block 5th Ave</span><span class="loc-n">n=22</span></div>
+    <div class="tags">
+      <span class="tag tag-red">91% at 6am (20/22)</span>
+      <span class="tag tag-blue">100% weekday</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="t-5b-h" role="img" aria-label="1000 Block 5th Ave trespass by hour — nearly all 6am"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="t-5b-d" role="img" aria-label="1000 Block 5th Ave trespass by day"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="loc-card cat-tres">
+    <div class="loc-top"><span class="loc-addr">1500 Block 6th Ave</span><span class="loc-n">n=19</span></div>
+    <div class="tags">
+      <span class="tag tag-gray">6am + 7am (11/19)</span>
+      <span class="tag tag-blue">100% weekday</span>
+      <span class="tag tag-gray">Wed (6) + Thu (7)</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="t-6d-h" role="img" aria-label="1500 Block 6th Ave trespass by hour"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="t-6d-d" role="img" aria-label="1500 Block 6th Ave trespass by day"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="loc-card cat-tres">
+    <div class="loc-top"><span class="loc-addr">1000 Block 7th Ave</span><span class="loc-n">n=14</span></div>
+    <div class="tags">
+      <span class="tag tag-gray">8am peak (4)</span>
+      <span class="tag tag-blue">100% weekday</span>
+      <span class="tag tag-gray">Mon (5) + Tue (7)</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="t-7a-h" role="img" aria-label="1000 Block 7th Ave trespass by hour"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="t-7a-d" role="img" aria-label="1000 Block 7th Ave trespass by day"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="loc-card cat-tres">
+    <div class="loc-top"><span class="loc-addr">600 Block 4th Ave</span><span class="loc-n">n=12</span></div>
+    <div class="tags">
+      <span class="tag tag-gray">7am peak (6)</span>
+      <span class="tag tag-gray">58% weekday</span>
+      <span class="tag tag-gray">Tue + Wed + weekends</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="t-4a-h" role="img" aria-label="600 Block 4th Ave trespass by hour"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="t-4a-d" role="img" aria-label="600 Block 4th Ave trespass by day"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="loc-card cat-tres">
+    <div class="loc-top"><span class="loc-addr">600 Block 10th St</span><span class="loc-n">n=12</span></div>
+    <div class="tags">
+      <span class="tag tag-gray">8am peak (4)</span>
+      <span class="tag tag-blue">83% weekday</span>
+      <span class="tag tag-gray">Tue (6) + Mon (2)</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="t-10s-h" role="img" aria-label="600 Block 10th St trespass by hour"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="t-10s-d" role="img" aria-label="600 Block 10th St trespass by day"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="loc-card cat-tres">
+    <div class="loc-top"><span class="loc-addr">0 Block W 3rd Ave</span><span class="loc-n">n=11</span></div>
+    <div class="tags">
+      <span class="tag tag-gray">Overnight / early AM</span>
+      <span class="tag tag-blue">81% weekday</span>
+      <span class="tag tag-gray">Fri heavy (4)</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="t-3a-h" role="img" aria-label="0 Block W 3rd Ave trespass by hour"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="t-3a-d" role="img" aria-label="0 Block W 3rd Ave trespass by day"></canvas></div></div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- CAMPING -->
+<div class="crime-section" id="camping">
+  <div class="section-header">
+    <div class="dot" style="background:var(--camp)"></div>
+    <h3 style="color:var(--camp)">Camping</h3>
+    <span class="total">n=265 combined incidents &amp; arrests</span>
+  </div>
+
+  <div class="broad-card">
+    <div class="card-label">All camping — day of week &amp; time of day</div>
+    <div class="broad-charts">
+      <div>
+        <div class="chart-label">Day of week</div>
+        <div class="chart-wrap"><canvas id="c-broad-d" role="img" aria-label="Camping by day: Mon 70, Tue 61, Wed 36, Thu 55, Fri 25, Sat 11, Sun 7">Mon 70, Tue 61, Wed 36, Thu 55, Fri 25, Sat 11, Sun 7</canvas></div>
+      </div>
+      <div>
+        <div class="chart-label">Hour of day</div>
+        <div class="chart-wrap"><canvas id="c-broad-h" role="img" aria-label="Camping by hour: almost entirely 6-9am">6am 65, 7am 65, 8am 46, near zero after noon</canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="loc-card cat-camp">
+    <div class="loc-top"><span class="loc-addr">10th St &amp; Veterans Memorial Blvd</span><span class="loc-n">n=10 — anomaly</span></div>
+    <div class="tags">
+      <span class="tag tag-red">100% on Monday (10/10)</span>
+      <span class="tag tag-gray">8am peak (5/10)</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="c-v2-h" role="img" aria-label="10th St Veterans Memorial camping by hour"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="c-v2-d" role="img" aria-label="10th St Veterans Memorial camping by day — all Monday"></canvas></div></div>
+    </div>
+    <div class="note"><strong>Every single incident falls on Monday.</strong> Paired with the 1000 Block Veterans Memorial (Tuesday-heavy), this suggests a weekly two-day corridor clearance along Veterans Memorial.</div>
+  </div>
+
+  <div class="loc-card cat-camp">
+    <div class="loc-top"><span class="loc-addr">1000 Block Veterans Memorial Blvd</span><span class="loc-n">n=12</span></div>
+    <div class="tags">
+      <span class="tag tag-red">75% at 6am (9/12)</span>
+      <span class="tag tag-blue">100% weekday</span>
+      <span class="tag tag-gray">Tue (6) + Mon (4)</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="c-v1-h" role="img" aria-label="Veterans Memorial Blvd camping by hour — 6am spike"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="c-v1-d" role="img" aria-label="Veterans Memorial Blvd camping by day — Tue and Mon"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="loc-card cat-camp">
+    <div class="loc-top"><span class="loc-addr">600 Block 4th Ave</span><span class="loc-n">n=23</span></div>
+    <div class="tags">
+      <span class="tag tag-gray">7am + 8am peak (14/23)</span>
+      <span class="tag tag-blue">91% weekday</span>
+      <span class="tag tag-gray">Mon heavy (8)</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="c-4a-h" role="img" aria-label="600 Block 4th Ave camping by hour"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="c-4a-d" role="img" aria-label="600 Block 4th Ave camping by day"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="loc-card cat-camp">
+    <div class="loc-top"><span class="loc-addr">3rd Ave &amp; 6th St</span><span class="loc-n">n=15</span></div>
+    <div class="tags">
+      <span class="tag tag-red">60% at 7am (9/15)</span>
+      <span class="tag tag-blue">100% weekday</span>
+      <span class="tag tag-gray">Tue (9) + Mon (4)</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="c-3s-h" role="img" aria-label="3rd Ave 6th St camping by hour — 7am spike"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="c-3s-d" role="img" aria-label="3rd Ave 6th St camping by day"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="loc-card cat-camp">
+    <div class="loc-top"><span class="loc-addr">900 Block 5th Ave</span><span class="loc-n">n=15</span></div>
+    <div class="tags">
+      <span class="tag tag-gray">6am + 8am tied (4 each)</span>
+      <span class="tag tag-blue">100% weekday</span>
+      <span class="tag tag-gray">Mon + Wed + Thu</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="c-5a-h" role="img" aria-label="900 Block 5th Ave camping by hour"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="c-5a-d" role="img" aria-label="900 Block 5th Ave camping by day"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="loc-card cat-camp">
+    <div class="loc-top"><span class="loc-addr">1000 Block 5th Ave</span><span class="loc-n">n=11</span></div>
+    <div class="tags">
+      <span class="tag tag-red">64% at 6am (7/11)</span>
+      <span class="tag tag-blue">100% weekday</span>
+      <span class="tag tag-gray">Mon heavy (6)</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="c-5b-h" role="img" aria-label="1000 Block 5th Ave camping by hour — 6am dominant"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="c-5b-d" role="img" aria-label="1000 Block 5th Ave camping by day"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="loc-card cat-camp">
+    <div class="loc-top"><span class="loc-addr">600 Block &amp; 4th Ave</span><span class="loc-n">n=17</span></div>
+    <div class="tags">
+      <span class="tag tag-red">88% at 6–7am (15/17)</span>
+      <span class="tag tag-gray">Mixed weekday + Sat</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="c-4b-h" role="img" aria-label="600 Block and 4th Ave camping by hour"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="c-4b-d" role="img" aria-label="600 Block and 4th Ave camping by day"></canvas></div></div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- SHOPLIFTING -->
+<div class="crime-section" id="shoplifting">
+  <div class="section-header">
+    <div class="dot" style="background:var(--shop)"></div>
+    <h3 style="color:var(--shop)">Shoplifting</h3>
+    <span class="total">n=627 combined incidents &amp; arrests</span>
+  </div>
+
+  <div class="broad-card">
+    <div class="card-label">All shoplifting — day of week &amp; time of day</div>
+    <div class="broad-charts">
+      <div>
+        <div class="chart-label">Day of week</div>
+        <div class="chart-wrap"><canvas id="s-broad-d" role="img" aria-label="Shoplifting by day: Mon 107, Tue 99, Wed 111, Thu 97, Fri 90, Sat 59, Sun 64">Mon 107, Tue 99, Wed 111, Thu 97, Fri 90, Sat 59, Sun 64</canvas></div>
+      </div>
+      <div>
+        <div class="chart-label">Hour of day</div>
+        <div class="chart-wrap"><canvas id="s-broad-h" role="img" aria-label="Shoplifting by hour: builds from 10am, peaks noon-1pm, stays elevated through evening">Noon 69, 1pm 67, sustained through 7pm</canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="loc-card cat-shop">
+    <div class="loc-top"><span class="loc-addr">100 Block 4th Ave</span><span class="loc-n">n=105 — largest</span></div>
+    <div class="tags">
+      <span class="tag tag-blue">81% weekday</span>
+      <span class="tag tag-gray">10am peak (15)</span>
+      <span class="tag tag-gray">Mon (22) + Fri (20)</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="s-4a-h" role="img" aria-label="100 Block 4th Ave shoplifting by hour — broad daytime spread"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="s-4a-d" role="img" aria-label="100 Block 4th Ave shoplifting by day"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="loc-card cat-shop">
+    <div class="loc-top"><span class="loc-addr">700 Block 6th Ave</span><span class="loc-n">n=77</span></div>
+    <div class="tags">
+      <span class="tag tag-blue">89% weekday</span>
+      <span class="tag tag-gray">11am peak (9)</span>
+      <span class="tag tag-gray">Wed (18) + Tue (16)</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="s-6a-h" role="img" aria-label="700 Block 6th Ave shoplifting by hour"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="s-6a-d" role="img" aria-label="700 Block 6th Ave shoplifting by day"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="loc-card cat-shop">
+    <div class="loc-top"><span class="loc-addr">500 Block 20th St</span><span class="loc-n">n=66</span></div>
+    <div class="tags">
+      <span class="tag tag-blue">89% weekday</span>
+      <span class="tag tag-gray">1pm + 2pm + 5pm</span>
+      <span class="tag tag-gray">Mon heavy (22)</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="s-20-h" role="img" aria-label="500 Block 20th St shoplifting by hour — afternoon spread"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="s-20-d" role="img" aria-label="500 Block 20th St shoplifting by day — Monday heavy"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="loc-card cat-shop">
+    <div class="loc-top"><span class="loc-addr">2200 Block 5th Ave</span><span class="loc-n">n=66</span></div>
+    <div class="tags">
+      <span class="tag tag-amber">Fri = 32% (21/66)</span>
+      <span class="tag tag-gray">1pm peak (14)</span>
+      <span class="tag tag-blue">87% weekday</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="s-5a-h" role="img" aria-label="2200 Block 5th Ave shoplifting by hour — 1pm peak"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="s-5a-d" role="img" aria-label="2200 Block 5th Ave shoplifting by day — Friday heavy"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="loc-card cat-shop">
+    <div class="loc-top"><span class="loc-addr">2100 Block 8th Ave</span><span class="loc-n">n=30</span></div>
+    <div class="tags">
+      <span class="tag tag-gray">Noon peak (8)</span>
+      <span class="tag tag-gray">Wed heavy (8)</span>
+      <span class="tag tag-blue">76% weekday</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="s-8a-h" role="img" aria-label="2100 Block 8th Ave shoplifting by hour — noon to 5pm cluster"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="s-8a-d" role="img" aria-label="2100 Block 8th Ave shoplifting by day"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="loc-card cat-shop">
+    <div class="loc-top"><span class="loc-addr">1100 Block Hal Greer Blvd</span><span class="loc-n">n=26</span></div>
+    <div class="tags">
+      <span class="tag tag-gray">1pm + 2pm tied (4 each)</span>
+      <span class="tag tag-blue">84% weekday</span>
+      <span class="tag tag-gray">Wed (7) + Mon (6)</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="s-hg-h" role="img" aria-label="Hal Greer Blvd shoplifting by hour"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="s-hg-d" role="img" aria-label="Hal Greer Blvd shoplifting by day"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="loc-card cat-shop">
+    <div class="loc-top"><span class="loc-addr">300 Block Norway Ave</span><span class="loc-n">n=18 — anomaly</span></div>
+    <div class="tags">
+      <span class="tag tag-red">67% weekend (12/18)</span>
+      <span class="tag tag-red">8pm peak (5/18 = 28%)</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="s-no-h" role="img" aria-label="Norway Ave shoplifting by hour — 8pm spike"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="s-no-d" role="img" aria-label="Norway Ave shoplifting by day — weekend dominant"></canvas></div></div>
+    </div>
+    <div class="note"><strong>Only location that is majority weekend.</strong> Every other shoplifting site is 76–93% weekday. Strong 8pm evening spike — likely a convenience or bar-adjacent retail location.</div>
+  </div>
+
+  <div class="loc-card cat-shop">
+    <div class="loc-top"><span class="loc-addr">900 Block 9th Ave</span><span class="loc-n">n=17</span></div>
+    <div class="tags">
+      <span class="tag tag-gray">Noon (4) + 5pm (4) tied</span>
+      <span class="tag tag-blue">82% weekday</span>
+      <span class="tag tag-gray">Wed (5) + Mon (4)</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="s-9a-h" role="img" aria-label="900 Block 9th Ave shoplifting by hour"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="s-9a-d" role="img" aria-label="900 Block 9th Ave shoplifting by day"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="loc-card cat-shop">
+    <div class="loc-top"><span class="loc-addr">700 Block 9th Ave</span><span class="loc-n">n=16</span></div>
+    <div class="tags">
+      <span class="tag tag-gray">4pm peak (5)</span>
+      <span class="tag tag-blue">93% weekday</span>
+      <span class="tag tag-gray">Mon heavy (7)</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="s-9b-h" role="img" aria-label="700 Block 9th Ave shoplifting by hour"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="s-9b-d" role="img" aria-label="700 Block 9th Ave shoplifting by day"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="loc-card cat-shop">
+    <div class="loc-top"><span class="loc-addr">1500 Block 6th Ave</span><span class="loc-n">n=15</span></div>
+    <div class="tags">
+      <span class="tag tag-gray">2am (3) + noon (3) + 5pm (3)</span>
+      <span class="tag tag-gray">66% weekday</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="s-6d-h" role="img" aria-label="1500 Block 6th Ave shoplifting by hour"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="s-6d-d" role="img" aria-label="1500 Block 6th Ave shoplifting by day"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="loc-card cat-shop">
+    <div class="loc-top"><span class="loc-addr">100 Block 6th Ave</span><span class="loc-n">n=11 — anomaly</span></div>
+    <div class="tags">
+      <span class="tag tag-red">82% weekend (9/11)</span>
+      <span class="tag tag-gray">Sat (4) + Sun (5)</span>
+      <span class="tag tag-gray">Evening cluster</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="s-6e-h" role="img" aria-label="100 Block 6th Ave shoplifting by hour"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="s-6e-d" role="img" aria-label="100 Block 6th Ave shoplifting by day — weekend heavy"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="loc-card cat-shop">
+    <div class="loc-top"><span class="loc-addr">2200 Block 8th Ave</span><span class="loc-n">n=10</span></div>
+    <div class="tags">
+      <span class="tag tag-gray">8–9am opening window</span>
+      <span class="tag tag-blue">70% weekday</span>
+      <span class="tag tag-gray">Wed + Thu</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="s-8b-h" role="img" aria-label="2200 Block 8th Ave shoplifting by hour"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="s-8b-d" role="img" aria-label="2200 Block 8th Ave shoplifting by day"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="loc-card cat-shop">
+    <div class="loc-top"><span class="loc-addr">1000 Block Virginia Ave</span><span class="loc-n">n=10</span></div>
+    <div class="tags">
+      <span class="tag tag-gray">11am + 1pm + 4pm (2 each)</span>
+      <span class="tag tag-blue">80% weekday</span>
+      <span class="tag tag-gray">Mon (4) + Tue (3)</span>
+    </div>
+    <div class="loc-charts">
+      <div><div class="chart-label">Hour of day</div><div class="chart-wrap-sm"><canvas id="s-va-h" role="img" aria-label="Virginia Ave shoplifting by hour"></canvas></div></div>
+      <div><div class="chart-label">Day of week</div><div class="chart-wrap-sm"><canvas id="s-va-d" role="img" aria-label="Virginia Ave shoplifting by day"></canvas></div></div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<script>
+const D=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const H=Array.from({length:24},(_,i)=>i+'h');
+function z24(p){const a=Array(24).fill(0);p.forEach(([i,v])=>a[i]=v);return a;}
+function z7(p){const a=Array(7).fill(0);p.forEach(([i,v])=>a[i]=v);return a;}
+
+const BROAD=550, LOC=95;
+
+function mkChart(id,labels,data,color,height){
+  const el=document.getElementById(id);if(!el)return;
+  new Chart(el,{
+    type:'bar',
+    data:{labels,datasets:[{data,backgroundColor:color,borderRadius:2,borderWidth:0,hoverBackgroundColor:color+'cc'}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      animation:{duration:600},
+      plugins:{legend:{display:false},tooltip:{
+        backgroundColor:'#1a1a1a',borderColor:'#333',borderWidth:1,
+        titleColor:'#e8e6e0',bodyColor:'#888680',
+        titleFont:{family:'IBM Plex Mono',size:10},bodyFont:{family:'IBM Plex Mono',size:10},
+        callbacks:{label:c=>' '+c.parsed.y}
+      }},
+      scales:{
+        x:{grid:{display:false,drawBorder:false},border:{display:false},
+           ticks:{font:{family:'IBM Plex Mono',size:9},color:'#555',autoSkip:true,maxTicksLimit:12}},
+        y:{display:false,beginAtZero:true,grid:{display:false}}
+      }
+    }
+  });
+}
+
+const P='#378ADD', T='#1D9E75', C='#D85A30', A='#BA7517', G='#666460';
+
+mkChart('p-broad-d',D,[61,65,82,50,89,15,25],P,BROAD);
+mkChart('p-broad-h',H,z24([[0,17],[1,9],[2,8],[3,16],[4,6],[5,4],[6,36],[7,37],[8,26],[9,25],[10,18],[11,12],[12,18],[13,36],[14,35],[15,22],[16,18],[17,10],[18,1],[19,5],[20,4],[21,6],[22,5],[23,13]]),P,BROAD);
+mkChart('p-4a-h',H,z24([[6,2],[7,2],[10,3],[11,2],[13,7],[14,6],[16,4]]),P,LOC);
+mkChart('p-4a-d',D,z7([[0,2],[1,6],[2,6],[3,5],[4,5],[6,2]]),P,LOC);
+mkChart('p-5a-h',H,z24([[6,6],[15,4]]),P,LOC);
+mkChart('p-5a-d',D,z7([[0,2],[3,2],[4,6]]),P,LOC);
+
+mkChart('t-broad-d',D,[136,164,160,113,135,19,43],T,BROAD);
+mkChart('t-broad-h',H,z24([[0,2],[1,6],[2,5],[3,7],[4,11],[5,5],[6,154],[7,108],[8,62],[9,49],[10,50],[11,30],[12,43],[13,60],[14,47],[15,31],[16,25],[17,18],[18,8],[19,11],[20,13],[21,5],[22,12],[23,8]]),T,BROAD);
+mkChart('t-wa-h',H,z24([[10,3],[12,7],[13,17],[14,15],[16,1]]),T,LOC);
+mkChart('t-wa-d',D,z7([[3,3],[4,40]]),T,LOC);
+mkChart('t-6a-h',H,z24([[2,1],[4,2],[6,10],[7,6],[8,6],[9,4],[10,9],[11,3],[13,2],[14,4],[15,4],[16,2],[17,1],[20,3],[22,4],[23,2]]),T,LOC);
+mkChart('t-6a-d',D,z7([[0,6],[1,17],[2,6],[3,11],[4,14],[5,2],[6,7]]),T,LOC);
+mkChart('t-4s-h',H,z24([[6,45],[7,8],[16,4]]),T,LOC);
+mkChart('t-4s-d',D,z7([[0,19],[1,7],[2,16],[3,10],[4,5]]),T,LOC);
+mkChart('t-5a-h',H,z24([[1,2],[6,19],[7,6],[8,2],[9,2],[10,2],[12,3],[13,3],[14,8],[16,2],[20,2],[22,2]]),T,LOC);
+mkChart('t-5a-d',D,z7([[0,13],[1,11],[2,8],[3,8],[4,11],[6,2]]),T,LOC);
+mkChart('t-6b-h',H,z24([[7,2],[9,12],[10,8],[11,2],[13,2],[15,4]]),T,LOC);
+mkChart('t-6b-d',D,z7([[1,14],[2,8],[3,4],[4,4]]),T,LOC);
+mkChart('t-6c-h',H,z24([[6,13],[7,2],[8,6],[9,4],[10,2],[13,2]]),T,LOC);
+mkChart('t-6c-d',D,z7([[0,9],[1,7],[2,6],[3,3],[5,2],[6,2]]),T,LOC);
+mkChart('t-7s-h',H,z24([[6,7],[7,19]]),T,LOC);
+mkChart('t-7s-d',D,z7([[1,8],[2,18]]),T,LOC);
+mkChart('t-3s-h',H,z24([[7,16],[10,4],[13,3],[19,3]]),T,LOC);
+mkChart('t-3s-d',D,z7([[0,6],[1,7],[2,7],[3,6]]),T,LOC);
+mkChart('t-5b-h',H,z24([[6,20],[8,2]]),T,LOC);
+mkChart('t-5b-d',D,z7([[0,4],[1,1],[2,5],[3,5],[4,7]]),T,LOC);
+mkChart('t-6d-h',H,z24([[0,2],[6,6],[7,5],[12,3],[13,3]]),T,LOC);
+mkChart('t-6d-d',D,z7([[1,3],[2,6],[3,7],[4,3]]),T,LOC);
+mkChart('t-7a-h',H,z24([[8,4],[10,3],[15,3],[16,2],[19,2]]),T,LOC);
+mkChart('t-7a-d',D,z7([[0,5],[1,7],[2,2]]),T,LOC);
+mkChart('t-4a-h',H,z24([[6,2],[7,6],[8,2],[11,2]]),T,LOC);
+mkChart('t-4a-d',D,z7([[1,3],[2,4],[5,2],[6,3]]),T,LOC);
+mkChart('t-10s-h',H,z24([[4,2],[8,4],[10,2],[17,2],[19,2]]),T,LOC);
+mkChart('t-10s-d',D,z7([[0,2],[1,6],[4,2],[6,2]]),T,LOC);
+mkChart('t-3a-h',H,z24([[1,2],[4,2],[5,2],[6,2],[17,2],[18,1]]),T,LOC);
+mkChart('t-3a-d',D,z7([[0,2],[2,1],[3,2],[4,4],[5,2]]),T,LOC);
+
+mkChart('c-broad-d',D,[70,61,36,55,25,11,7],C,BROAD);
+mkChart('c-broad-h',H,z24([[5,5],[6,65],[7,65],[8,46],[9,23],[10,15],[11,15],[12,6],[13,11],[14,4],[15,6],[16,2],[17,2]]),C,BROAD);
+mkChart('c-v2-h',H,z24([[8,5],[13,2],[14,3]]),C,LOC);
+mkChart('c-v2-d',D,z7([[0,10]]),C,LOC);
+mkChart('c-v1-h',H,z24([[6,9],[7,3]]),C,LOC);
+mkChart('c-v1-d',D,z7([[0,4],[1,6],[2,2]]),C,LOC);
+mkChart('c-4a-h',H,z24([[6,3],[7,7],[8,7],[9,2],[10,2],[13,2]]),C,LOC);
+mkChart('c-4a-d',D,z7([[0,8],[1,4],[2,2],[3,2],[4,5],[5,2]]),C,LOC);
+mkChart('c-3s-h',H,z24([[6,3],[7,9],[8,3]]),C,LOC);
+mkChart('c-3s-d',D,z7([[0,4],[1,9],[3,2]]),C,LOC);
+mkChart('c-5a-h',H,z24([[6,4],[8,4],[9,3],[13,2],[16,2]]),C,LOC);
+mkChart('c-5a-d',D,z7([[0,4],[1,3],[2,4],[3,4]]),C,LOC);
+mkChart('c-5b-h',H,z24([[6,7],[7,2],[8,2]]),C,LOC);
+mkChart('c-5b-d',D,z7([[0,6],[3,2],[4,3]]),C,LOC);
+mkChart('c-4b-h',H,z24([[6,7],[7,8],[8,2]]),C,LOC);
+mkChart('c-4b-d',D,z7([[0,4],[1,4],[2,3],[5,4],[6,2]]),C,LOC);
+
+mkChart('s-broad-d',D,[107,99,111,97,90,59,64],A,BROAD);
+mkChart('s-broad-h',H,z24([[0,5],[1,3],[2,5],[3,1],[4,4],[5,4],[6,5],[7,5],[8,27],[9,29],[10,43],[11,52],[12,69],[13,67],[14,51],[15,36],[16,45],[17,37],[18,36],[19,43],[20,28],[21,15],[22,10],[23,7]]),A,BROAD);
+mkChart('s-4a-h',H,z24([[8,10],[9,6],[10,15],[11,7],[12,13],[13,8],[14,9],[15,3],[16,5],[17,8],[18,8],[19,9],[20,2],[21,2]]),A,LOC);
+mkChart('s-4a-d',D,z7([[0,22],[1,17],[2,14],[3,13],[4,20],[5,5],[6,14]]),A,LOC);
+mkChart('s-6a-h',H,z24([[0,2],[4,2],[6,2],[7,4],[8,5],[9,4],[10,3],[11,9],[12,3],[13,6],[14,2],[15,5],[16,3],[17,3],[18,3],[19,4],[20,4],[21,2],[22,5],[23,6]]),A,LOC);
+mkChart('s-6a-d',D,z7([[0,15],[1,16],[2,18],[3,10],[4,10],[5,2],[6,6]]),A,LOC);
+mkChart('s-20-h',H,z24([[8,2],[9,1],[10,3],[11,5],[12,7],[13,10],[14,9],[15,2],[16,6],[17,9],[18,2],[19,7],[21,3]]),A,LOC);
+mkChart('s-20-d',D,z7([[0,22],[1,13],[2,8],[3,10],[4,6],[5,5],[6,2]]),A,LOC);
+mkChart('s-5a-h',H,z24([[0,2],[1,1],[3,1],[5,4],[7,1],[8,6],[9,6],[10,3],[11,4],[12,6],[13,14],[14,7],[15,1],[16,1],[17,2],[19,2],[20,3],[21,2]]),A,LOC);
+mkChart('s-5a-d',D,z7([[0,5],[1,9],[2,8],[3,15],[4,21],[5,5],[6,3]]),A,LOC);
+mkChart('s-8a-h',H,z24([[8,1],[10,2],[11,1],[12,8],[14,3],[16,5],[17,4],[18,2],[19,2],[20,2]]),A,LOC);
+mkChart('s-8a-d',D,z7([[0,2],[1,4],[2,8],[3,3],[4,6],[5,4],[6,3]]),A,LOC);
+mkChart('s-hg-h',H,z24([[6,2],[8,1],[9,3],[11,2],[12,1],[13,4],[14,4],[15,3],[16,1],[18,2],[19,3]]),A,LOC);
+mkChart('s-hg-d',D,z7([[0,6],[1,4],[2,7],[3,2],[4,3],[5,1],[6,3]]),A,LOC);
+mkChart('s-no-h',H,z24([[9,3],[10,2],[12,2],[14,1],[16,1],[17,1],[18,2],[19,1],[20,5]]),A,LOC);
+mkChart('s-no-d',D,z7([[1,2],[2,1],[3,3],[5,7],[6,5]]),A,LOC);
+mkChart('s-9a-h',H,z24([[11,3],[12,4],[17,4],[19,2],[20,3],[21,1]]),A,LOC);
+mkChart('s-9a-d',D,z7([[0,4],[1,3],[2,5],[4,2],[6,3]]),A,LOC);
+mkChart('s-9b-h',H,z24([[10,2],[13,3],[14,1],[15,3],[16,5],[18,2]]),A,LOC);
+mkChart('s-9b-d',D,z7([[0,7],[1,2],[2,2],[3,4],[5,1]]),A,LOC);
+mkChart('s-6d-h',H,z24([[0,1],[1,1],[2,3],[6,1],[12,3],[17,3],[18,1],[22,1],[23,1]]),A,LOC);
+mkChart('s-6d-d',D,z7([[1,1],[2,4],[3,3],[4,2],[5,2],[6,3]]),A,LOC);
+mkChart('s-6e-h',H,z24([[10,2],[11,2],[12,2],[18,3],[21,2]]),A,LOC);
+mkChart('s-6e-d',D,z7([[2,2],[5,4],[6,5]]),A,LOC);
+mkChart('s-8b-h',H,z24([[8,2],[9,2],[11,1],[12,2],[15,1],[16,1],[19,1]]),A,LOC);
+mkChart('s-8b-d',D,z7([[2,3],[3,2],[4,2],[5,2],[6,1]]),A,LOC);
+mkChart('s-va-h',H,z24([[10,1],[11,2],[13,2],[15,1],[16,2],[18,2]]),A,LOC);
+mkChart('s-va-d',D,z7([[0,4],[1,3],[2,1],[5,1],[6,1]]),A,LOC);
+</script>
+</body>
+</html>
